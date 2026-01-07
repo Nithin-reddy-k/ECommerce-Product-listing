@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres-master:
+    image: postgres:15-alpine
+    container_name: postgres-master
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REPLICATION_USER: ${REPLICATION_USER}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD}
+    ports:
+      - "5433:5432"
+    networks:
+      - postgres-network
+    volumes:
+      - master-data:/var/lib/postgresql/data
+      - ./init-master.sh:/docker-entrypoint-initdb.d/init-master.sh
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=3 
+      -c max_replication_slots=3 
+      -c hot_standby_feedback=on
+      -c synchronous_commit=off
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: postgres-replica
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REPLICATION_USER: ${REPLICATION_USER}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD}
+    ports:
+      - "5434:5432"
+    networks:
+      - postgres-network
+    volumes:
+      - replica-data:/var/lib/postgresql/data
+      - ./setup-replica.sh:/setup-replica.sh  # Mount the script
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/setup-replica.sh"]  # Run the script
+
+networks:
+  postgres-network:
+    driver: bridge
+
+volumes:
+  master-data:
+  replica-data:
