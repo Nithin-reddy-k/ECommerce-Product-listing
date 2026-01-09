@@ -6,26 +6,43 @@ const adminRouter: Router = Router();
 
 adminRouter.get("/users", async (req, res) => {
 
-    const users = await replicaPool.query(`
+    try {
+        const users = await replicaPool.query(`
             SELECT * FROM users
             WHERE role='user';
-        `);
+        `);    
+        
+        if(!users) {
+            return res.status(409).json({ msg: "Some error occured"});
+        }
 
-    res.json({ users: users.rows, msg: "sucessfull" });
+        const response = users.rows;
+        return res.json({ users: response, msg: "sucessfull" });
+    
+    } catch (error) {
+        return res.status(403).json({ err: error, msg: "Some error occurred"});
+    }
 
 });
 
 
 adminRouter.get("/products", async (req, res) => {
 
-    const products = await replicaPool.query(`
+    try {
+        const products = await replicaPool.query(`
             SELECT * FROM products;
         `);
-    
-    res.json({
-        products: products.rows,
-        msg: "successfull"
-    });
+
+        if(!products) {
+            return res.status(409).json({ msg: "Some error occurred"});
+        }
+
+        const response = products.rows;
+        return res.status(200).json({ products: response, msg: "Successfull"});
+
+    } catch (error) {
+        return res.status(403).json({ msg: "Some error occurred" });
+    }
 
 });
 
@@ -47,14 +64,21 @@ adminRouter.post("/product", async (req, res) => {
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *;
     `;
-    
-    const response = await masterPool.query(query, values);
-    const resposeBody = response.rows;
 
-    res.json({
-        resposeBody,
-        msg: "successfull"
-    });
+    try {
+        const response = await masterPool.query(query, values);
+
+        if(!response) {
+            return res.status(409).json({ msg: "Some error occurred" });
+        }
+
+        const resposeBody = response.rows;
+        return res.status(200).json({ response: resposeBody, msg: "Successfull" });
+
+    } catch (error) {
+        return res.status(403).json({ msg: "Some error occurred" });
+    }
+    
 });
 
 
@@ -62,18 +86,25 @@ adminRouter.delete("/product/:id", async (req, res) => {
 
     const {id} = req.params;
 
-    const response = await masterPool.query(`
+    try {
+        const response = await masterPool.query(`
             DELETE FROM products WHERE id='${id}'
             RETURNING *;
         `)
 
-    const resposeBody = response.rows;    
+        if(!response) {
+            return res.status(409).json({ msg: "Some error occurred" });
+        }
 
-    res.json({
-        response,
-        msg: "successfull"
-    });
+        const resposeBody = response.rows;
+        return res.status(200).json({ response: resposeBody, msg: "Successfull" });
+    } catch (error) {
+        return res.status(403).json({ msg: "Some error occurred" });
+
+    };
+
 });
+
 
 adminRouter.get("/product/:id", async (req, res) => {
     const { id } = req.params;
@@ -90,6 +121,7 @@ adminRouter.get("/product/:id", async (req, res) => {
     });
     
 });
+
 
 adminRouter.put("/product/:id", async (req, res) => {
     const { id } = req.params;
@@ -110,13 +142,19 @@ adminRouter.put("/product/:id", async (req, res) => {
         RETURNING *;
     `
 
-    const response = await masterPool.query(query, values);
-    const responseBody = response.rows;
+    try {
+        const response = await masterPool.query(query, values);
 
-    res.json({
-        responseBody, 
-        msg: "succssfull"
-    });
+        if(!response) {
+            return res.status(409).json({ msg: "Some error occurred" });
+        }
+
+        const responseBody = response.rows;
+        return res.status(200).json({ response: responseBody, msg: "Successfull"});
+    } catch (error) {
+        return res.status(403).json({ msg: "Some error occurred" });
+    };
+
 });
 
 export default adminRouter;
